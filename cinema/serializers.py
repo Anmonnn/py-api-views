@@ -8,18 +8,31 @@ class MovieSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     description = serializers.CharField()
     duration = serializers.IntegerField()
-    actors = serializers.ListField(child=serializers.IntegerField(), required=False)
-    genres = serializers.ListField(child=serializers.IntegerField(), required=False)
+    actors = serializers.PrimaryKeyRelatedField(queryset=Actor.objects.all(), many=True)
+    genres = serializers.PrimaryKeyRelatedField(queryset=Genre.objects.all(), many=True)
 
     def create(self, validated_data):
-        return Movie.objects.create(**validated_data)
+        actors_data = validated_data.pop("actors", [])
+        genres_data = validated_data.pop("genres", [])
+        movie = Movie.objects.create(**validated_data)
+        movie.actors.set(actors_data)
+        movie.genres.set(genres_data)
+
+        return movie
 
     def update(self, instance, validated_data):
+        actors_data = validated_data.pop("actors", None)
+        genres_data = validated_data.pop("genres", None)
+
         instance.title = validated_data.get("title", instance.title)
         instance.description = validated_data.get("description", instance.description)
         instance.duration = validated_data.get("duration", instance.duration)
-
         instance.save()
+
+        if actors_data is not None:
+            instance.actors.set(actors_data)
+        if genres_data is not None:
+            instance.genres.set(genres_data)
 
         return instance
 
@@ -68,7 +81,9 @@ class CinemaHallSerializer(serializers.Serializer):
     def update(self, instance, validated_data):
         instance.name = validated_data.get("name", instance.name)
         instance.rows = validated_data.get("rows", instance.rows)
-        instance.seats_in_row = validated_data.get("seats_in_row", instance.seats_in_row)
+        instance.seats_in_row = validated_data.get(
+            "seats_in_row", instance.seats_in_row
+        )
 
         instance.save()
 
